@@ -1,0 +1,42 @@
+name: Release
+on: issue_comment
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, '/approve-release') && github.event.comment.author_association == 'OWNER'
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Get release candidate
+        id: get_data
+        uses: ./.github/actions/get_data
+
+      - name: create release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.get_data.outputs.version }}
+          release_name: Release ${{ steps.get_data.outputs.version }}
+          draft: false
+          prerelease: false
+
+      - name: Download artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: main.yaml
+          run_id: ${{ steps.get_data.outputs.run_id }}
+          name: executables
+
+      - name: Upload Release Assets
+        uses: alexellis/upload-assets@0.3.0
+        with:
+          asset_paths: '["./executables/*"]'
+
+      - uses: lee-dohm/close-matching-issues@v2
+        if: success()
+        with:
+          query: 'label:release-candidate'
+          token: ${{ secrets.GITHUB_TOKEN }}

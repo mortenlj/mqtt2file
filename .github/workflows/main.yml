@@ -1,0 +1,84 @@
+name: Build
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on: [ push ]
+
+env:
+  cache_image: ghcr.io/${{ github.repository }}/cache:cache
+
+jobs:
+  set-version:
+    name: Set variables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Set version"
+        id: constants
+        run: |
+          export version="$(date +%Y%m%d%H%M%S)-$(git describe --always --dirty --exclude '*')"
+          echo "::set-output name=version::${version}"
+    outputs:
+      version: "${{ steps.constants.outputs.version }}"
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: set-version
+    env:
+      version: "${{ needs.set-version.outputs.version }}"
+    steps:
+      - uses: actions/checkout@v3
+      - name: Login to GitHub Packages Docker Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and possibly push
+        env:
+          EARTHLY_PUSH: "${{ github.ref == 'refs/heads/main' }}"
+        run: |
+          ./earthlyw --version
+          ./earthlyw --allow-privileged --ci --output "--remote-cache=${cache_image}" +deploy "--version=${version}"
+      - name: Save executables for release
+        uses: actions/upload-artifact@v3
+        with:
+          name: executables
+          path: target/mqtt2file.*
+          if-no-files-found: error
+  release-candidate:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs:
+      - set-version
+      - build
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: lee-dohm/close-matching-issues@v2
+        with:
+          query: 'label:release-candidate'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: nashmaniac/create-issue-action@v1.1
+        name: Create Release candidate issue
+        with:
+          title: Release candidate ${{ needs.set-version.outputs.version }}
+          token: ${{secrets.GITHUB_TOKEN}}
+          labels: release-candidate
+          body: |
+            A new release candidate has been created.
+
+            Comment on this issue with `/approve-release` to promote this candidate to a full release.
+
+            <details>
+            <summary>Release candidate data</summary>
+
+            ```
+            version: ${{ needs.set-version.outputs.version }}
+            run_id: ${{ github.run_id }}
+            ```
+
+            </details>
