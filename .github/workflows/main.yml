@@ -41,7 +41,7 @@ jobs:
           EARTHLY_PUSH: "${{ github.ref == 'refs/heads/main' }}"
         run: |
           ./earthlyw --version
-          ./earthlyw --allow-privileged --ci --output "--remote-cache=${cache_image}" +deploy "--version=${version}"
+          ./earthlyw --allow-privileged --ci --output "--remote-cache=${cache_image}" +build
       - name: Save executables for release
         uses: actions/upload-artifact@v3
         with:
