@@ -36,6 +36,7 @@ jobs:
         with:
           files: './executables/*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+          release-tag: ${{ steps.get_data.outputs.version }}
 
       - uses: lee-dohm/close-matching-issues@v2
         if: success()
