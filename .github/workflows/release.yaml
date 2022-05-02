@@ -29,18 +29,17 @@ jobs:
           workflow: main.yaml
           run_id: ${{ steps.get_data.outputs.run_id }}
           name: executables
+          path: ./executables/
 
-      - name: Unpack artifact
+      - name: Debugging
         run: |
-          ls -l .
-          mkdir -p executables
-          unzip executables.zip -d ./executables
-          ls -l ./executables
+          ls -l ./
+          ls -l ./executables/
 
       - name: Upload Release Assets
         uses: alexellis/upload-assets@0.3.0
         with:
-          asset_paths: '["./executables/mqtt2file.*.*"]'
+          asset_paths: '["./executables/*"]'
 
       - uses: lee-dohm/close-matching-issues@v2
         if: success()
