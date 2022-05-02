@@ -7,7 +7,7 @@ WORKDIR /code
 ds-qoriq-sdk:
     WORKDIR /tmp/ds-qoriq-sdk
     RUN wget --no-verbose https://global.download.synology.com/download/ToolChain/toolkit/6.2/qoriq/ds.qoriq-6.2.env.txz
-    RUN tar xvf ds.qoriq-6.2.env.txz
+    RUN tar xf ds.qoriq-6.2.env.txz
     SAVE ARTIFACT /tmp/ds-qoriq-sdk/usr/local/powerpc-e500v2-linux-gnuspe
 
 build-powerpc-unknown-linux-gnuspe:
