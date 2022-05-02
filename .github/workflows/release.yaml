@@ -30,10 +30,17 @@ jobs:
           run_id: ${{ steps.get_data.outputs.run_id }}
           name: executables
 
+      - name: Unpack artifact
+        run: |
+          ls -l .
+          mkdir -p executables
+          unzip executables.zip -d ./executables
+          ls -l ./executables
+
       - name: Upload Release Assets
         uses: alexellis/upload-assets@0.3.0
         with:
-          asset_paths: '["./mqtt2file.*.*"]'
+          asset_paths: '["./executables/mqtt2file.*.*"]'
 
       - uses: lee-dohm/close-matching-issues@v2
         if: success()
