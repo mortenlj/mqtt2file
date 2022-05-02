@@ -33,7 +33,7 @@ jobs:
       - name: Upload Release Assets
         uses: alexellis/upload-assets@0.3.0
         with:
-          asset_paths: '["./executables/*"]'
+          asset_paths: '["./mqtt2file.*.*"]'
 
       - uses: lee-dohm/close-matching-issues@v2
         if: success()
