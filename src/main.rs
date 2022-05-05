@@ -6,6 +6,7 @@ use std::{env, thread, time::Duration};
 use anyhow::{anyhow, Result};
 use env_logger::Env;
 use paho_mqtt as mqtt;
+use paho_mqtt::ConnectOptions;
 
 fn data_handler(msg: mqtt::Message) -> bool {
     info!("{}", msg);
@@ -62,11 +63,19 @@ fn main() -> Result<()> {
     // Initialize the consumer before connecting
     let rx = cli.start_consuming();
 
-    // Request a session that persists for 100 hours (360000sec) between connections
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .clean_start(client_id_suffix == "")
-        .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 360000])
-        .finalize();
+    let conn_opts: ConnectOptions;
+    if client_id_suffix == "" {
+        conn_opts = mqtt::ConnectOptionsBuilder::new()
+            .clean_start(true)
+            .finalize();
+    } else {
+        // Request a session that persists for 100 hours (360000sec) between connections
+        conn_opts = mqtt::ConnectOptionsBuilder::new()
+            .clean_session(false) // Needs to set this first, to clear the v3 version of the property
+            .clean_start(false)
+            .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 360000])
+            .finalize()
+    }
 
     // A table of dispatch function for incoming messages by Subscription ID.
     // (actually sub_id-1 since we can't use zero for a subscription ID)
@@ -90,7 +99,7 @@ fn main() -> Result<()> {
         } else {
             // Register subscriptions on the server, using Subscription ID's.
             info!("Subscribing to topics...");
-            cli.subscribe_with_options(format!("{}/#", topic_prefix), 1, None, sub_id(1))?;
+            cli.subscribe_with_options(format!("{}/#", topic_prefix), mqtt::QOS_1, None, sub_id(1))?;
         }
     }
 
