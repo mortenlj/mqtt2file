@@ -1,6 +1,6 @@
 VERSION 0.6
 
-FROM rust:1.59
+FROM rust:1.60
 
 WORKDIR /code
 
@@ -13,10 +13,11 @@ ds-qoriq-sdk:
     RUN wget --no-verbose https://global.download.synology.com/download/ToolChain/toolkit/6.2/qoriq/ds.qoriq-6.2.env.txz
     RUN tar xf ds.qoriq-6.2.env.txz
     SAVE ARTIFACT /tmp/ds-qoriq-sdk/usr/local/powerpc-e500v2-linux-gnuspe
+    SAVE IMAGE --cache-hint
 
 build-powerpc-unknown-linux-gnuspe:
     ARG target=powerpc-unknown-linux-gnuspe
-    ARG version
+    ARG version=unknown
 
     COPY --dir +ds-qoriq-sdk/ /ds-qoriq-sdk/
 
@@ -45,11 +46,12 @@ build-powerpc-unknown-linux-gnuspe:
 prepare:
     RUN cargo install cross --version ${cross_version}
     COPY --dir src Cargo.lock Cargo.toml .
+    SAVE IMAGE --cache-hint
 
 build-tier1:
     FROM +prepare
     ARG target
-    ARG version
+    ARG version=unknown
 
     WITH DOCKER \
         --pull rustembedded/cross:${target}-${cross_version}
