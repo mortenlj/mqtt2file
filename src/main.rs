@@ -3,6 +3,9 @@ extern crate log;
 
 use std::{thread, time::Duration};
 use std::cmp::min;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 
 use anyhow::{anyhow, Result};
 use env_logger::Env;
@@ -16,6 +19,9 @@ use clap::Parser;
 struct Args {
     /// Prefix of topics to subscribe to
     topic_prefix: String,
+
+    /// Directory to save files into
+    directory: String,
 
     /// MQTT server URI
     #[clap(short = 'u', long = "uri", default_value = "tcp://localhost:1883")]
@@ -32,11 +38,14 @@ struct Args {
 
 
 
-fn data_handler(msg: mqtt::Message) -> Result<()> {
+fn data_handler(msg: mqtt::Message, directory: &String) -> Result<()> {
     let filename = msg.properties()
         .find_user_property("filename")
         .ok_or(anyhow!("No filename in user-property"))?;
-    info!("filename: {}, payload: {}", filename, msg);
+    let filepath = Path::new(directory).join(filename);
+    info!("Saving message to {:?}", filepath);
+    let mut file = File::create(filepath).expect("Create failed!");
+    file.write_all(msg.payload()).expect("Failed to write payload!");
     Ok(())
 }
 
@@ -97,7 +106,7 @@ fn main() -> Result<()> {
             // In a real app you'd want to do a lot more error checking and
             // recovery, but this should give an idea about the basics.
 
-            let result = data_handler(msg);
+            let result = data_handler(msg, &args.directory);
             if result.is_err() {
                 error!("Error handling message: {}", result.err().unwrap())
             }
