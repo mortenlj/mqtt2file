@@ -133,8 +133,9 @@ fn main() -> Result<()> {
             // In a real app you'd want to do a lot more error checking and
             // recovery, but this should give an idea about the basics.
 
-            if data_handler(msg).is_err() {
-                break;
+            let result = data_handler(msg);
+            if result.is_err() {
+                error!("Error handling message: {}", result.err().unwrap())
             }
         } else if cli.is_connected() || !try_reconnect(&cli) {
             break;
