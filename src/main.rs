@@ -32,9 +32,12 @@ struct Args {
 
 
 
-fn data_handler(msg: mqtt::Message) -> bool {
-    info!("{}", msg);
-    true
+fn data_handler(msg: mqtt::Message) -> Result<()> {
+    let filename = msg.properties()
+        .find_user_property("filename")
+        .ok_or(anyhow!("No filename in user-property"))?;
+    info!("filename: {}, payload: {}", filename, msg);
+    Ok(())
 }
 
 fn try_reconnect(cli: &mqtt::Client) -> bool {
@@ -48,13 +51,6 @@ fn try_reconnect(cli: &mqtt::Client) -> bool {
     }
     error!("Unable to reconnect after several attempts.");
     false
-}
-
-// Create a set of properties with a single Subscription ID
-fn sub_id(id: i32) -> mqtt::Properties {
-    mqtt::properties![
-        mqtt::PropertyCode::SubscriptionIdentifier => id
-    ]
 }
 
 fn main() -> Result<()> {
@@ -99,10 +95,6 @@ fn main() -> Result<()> {
             .finalize()
     }
 
-    // A table of dispatch function for incoming messages by Subscription ID.
-    // (actually sub_id-1 since we can't use zero for a subscription ID)
-    let handler: Vec<fn(mqtt::Message) -> bool> = vec![data_handler];
-
     // Make the connection to the broker
     let rsp = cli.connect(conn_opts)?;
 
@@ -120,8 +112,8 @@ fn main() -> Result<()> {
             info!("  w/ client session already present on broker.");
         } else {
             // Register subscriptions on the server, using Subscription ID's.
-            info!("Subscribing to topics...");
-            cli.subscribe_with_options(format!("{}/#", args.topic_prefix), mqtt::QOS_1, None, sub_id(1))?;
+            info!("Subscribing to topics {}/#...", args.topic_prefix);
+            cli.subscribe_with_options(format!("{}/#", args.topic_prefix), mqtt::QOS_1, None, None)?;
         }
     }
 
@@ -141,12 +133,7 @@ fn main() -> Result<()> {
             // In a real app you'd want to do a lot more error checking and
             // recovery, but this should give an idea about the basics.
 
-            let sub_id = msg
-                .properties()
-                .get_int(mqtt::PropertyCode::SubscriptionIdentifier)
-                .expect("No Subscription ID") as usize;
-
-            if !handler[sub_id - 1](msg) {
+            if data_handler(msg).is_err() {
                 break;
             }
         } else if cli.is_connected() || !try_reconnect(&cli) {
