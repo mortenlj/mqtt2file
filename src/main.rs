@@ -7,7 +7,7 @@ use std::cmp::min;
 use anyhow::{anyhow, Result};
 use env_logger::Env;
 use paho_mqtt as mqtt;
-use paho_mqtt::ConnectOptions;
+use paho_mqtt::{Client, ConnectOptions};
 use clap::Parser;
 
 /// Collect messages from mqtt and write them to file
@@ -58,44 +58,15 @@ fn main() -> Result<()> {
 
     init_logging(&args);
 
-    let hostname = hostname::get().map_err(|_| anyhow!("Unable to get hostname"))?
-        .into_string().map_err(|_| anyhow!("Unable convert hostname to regular string"))?;
-
-    let client_id_prefix = format!("mqtt2file-{}", hostname);
-    let client_id: String;
-    if args.client_id_suffix != "" {
-        client_id = format!("{}-{}", client_id_prefix, args.client_id_suffix);
-    } else {
-        client_id = client_id_prefix;
-    }
-
-    // Create the client. Use an ID for a persistent session.
-    let create_opts = mqtt::CreateOptionsBuilder::new()
-        .mqtt_version(mqtt::MQTT_VERSION_5)
-        .server_uri(args.mqtt_uri)
-        .client_id(client_id)
-        .finalize();
-
-    let cli = mqtt::Client::new(create_opts)?;
+    let client_id = create_client_id(&args)?;
+    let cli = create_mqtt_client(args.mqtt_uri, client_id)?;
 
     // Initialize the consumer before connecting
     let rx = cli.start_consuming();
-
-    let conn_opts: ConnectOptions;
-    if args.client_id_suffix == "" {
-        conn_opts = mqtt::ConnectOptionsBuilder::new()
-            .clean_start(true)
-            .finalize();
-    } else {
-        // Request a session that persists for 100 hours (360000sec) between connections
-        conn_opts = mqtt::ConnectOptionsBuilder::new()
-            .clean_session(false) // Needs to set this first, to clear the v3 version of the property
-            .clean_start(false)
-            .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 360000])
-            .finalize()
-    }
+    setup_ctrlc_handler(cli.clone());
 
     // Make the connection to the broker
+    let conn_opts = create_conn_opts(args.client_id_suffix == "");
     let rsp = cli.connect(conn_opts)?;
 
     // We're connecting with a persistent session. So we check if
@@ -116,13 +87,6 @@ fn main() -> Result<()> {
             cli.subscribe_with_options(format!("{}/#", args.topic_prefix), mqtt::QOS_1, None, None)?;
         }
     }
-
-    // ^C handler will stop the consumer, breaking us out of the loop, below
-    let ctrlc_cli = cli.clone();
-    ctrlc::set_handler(move || {
-        ctrlc_cli.stop_consuming();
-    })
-        .expect("Error setting Ctrl-C handler");
 
     // Just loop on incoming messages.
     // If we get a None message, check if we got disconnected,
@@ -153,6 +117,56 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn create_conn_opts(use_persistent_session: bool) -> ConnectOptions {
+    let conn_opts: ConnectOptions;
+    if use_persistent_session {
+        conn_opts = mqtt::ConnectOptionsBuilder::new()
+            .clean_start(true)
+            .finalize();
+    } else {
+        // Request a session that persists for 100 hours (360000sec) between connections
+        conn_opts = mqtt::ConnectOptionsBuilder::new()
+            .clean_session(false) // Needs to set this first, to clear the v3 version of the property
+            .clean_start(false)
+            .properties(mqtt::properties![mqtt::PropertyCode::SessionExpiryInterval => 360000])
+            .finalize()
+    }
+    conn_opts
+}
+
+
+/// Create the client. Use an ID for a persistent session.
+fn create_mqtt_client(mqtt_uri: String, client_id: String) -> Result<Client> {
+    let create_opts = mqtt::CreateOptionsBuilder::new()
+        .mqtt_version(mqtt::MQTT_VERSION_5)
+        .server_uri(mqtt_uri)
+        .client_id(client_id)
+        .finalize();
+
+    let cli = mqtt::Client::new(create_opts)?;
+    Ok(cli)
+}
+
+fn create_client_id(args: &Args) -> Result<String> {
+    let hostname = hostname::get().map_err(|_| anyhow!("Unable to get hostname"))?
+        .into_string().map_err(|_| anyhow!("Unable convert hostname to regular string"))?;
+
+    let client_id_prefix = format!("mqtt2file-{}", hostname);
+    if args.client_id_suffix != "" {
+        return Ok(format!("{}-{}", client_id_prefix, args.client_id_suffix));
+    }
+    return Ok(client_id_prefix);
+}
+
+/// ^C handler will stop the consumer, breaking us out of the loop
+fn setup_ctrlc_handler(ctrlc_cli: Client) {
+    ctrlc::set_handler(move || {
+        ctrlc_cli.stop_consuming();
+    })
+        .expect("Error setting Ctrl-C handler");
+}
+
+/// Configure logging taking verbosity into account
 fn init_logging(args: &Args) {
     let log_levels = vec!["error", "warning", "info", "debug"];
     let default_level = 2;
