@@ -1,12 +1,36 @@
 #[macro_use]
 extern crate log;
 
-use std::{env, thread, time::Duration};
+use std::{thread, time::Duration};
+use std::cmp::min;
 
 use anyhow::{anyhow, Result};
 use env_logger::Env;
 use paho_mqtt as mqtt;
 use paho_mqtt::ConnectOptions;
+use clap::Parser;
+
+/// Collect messages from mqtt and write them to file
+#[derive(Parser,Debug)]
+#[clap(author="Morten Lied Johansen", version, about, long_about = None)]
+struct Args {
+    /// Prefix of topics to subscribe to
+    topic_prefix: String,
+
+    /// MQTT server URI
+    #[clap(short = 'u', long = "uri", default_value = "tcp://localhost:1883")]
+    mqtt_uri: String,
+
+    /// Client ID suffix. When given, create a persistent session with the client id mqtt2file-<hostname>-<suffix>
+    #[clap(short, long, default_value = "")]
+    client_id_suffix: String,
+
+    /// Control verbosity of logs. Can be repeated
+    #[clap(short, long, parse(from_occurrences))]
+    verbose: usize,
+}
+
+
 
 fn data_handler(msg: mqtt::Message) -> bool {
     info!("{}", msg);
@@ -34,28 +58,26 @@ fn sub_id(id: i32) -> mqtt::Properties {
 }
 
 fn main() -> Result<()> {
-    let env = Env::default()
-        .filter_or("LOG_LEVEL", "info");
+    let args: Args = Args::parse();
 
-    env_logger::init_from_env(env);
+    init_logging(&args);
 
-    let hostname = hostname::get()?;
+    let hostname = hostname::get().map_err(|_| anyhow!("Unable to get hostname"))?
+        .into_string().map_err(|_| anyhow!("Unable convert hostname to regular string"))?;
 
-    let topic_prefix = env::args()
-        .nth(1)
-        .ok_or(anyhow!("Topic prefix required"))?;
-    let mqtt_uri = env::args()
-        .nth(2)
-        .unwrap_or_else(|| "tcp://localhost:1883".to_string());
-    let client_id_suffix = env::args()
-        .nth(3)
-        .unwrap_or_else(|| "".to_string());
+    let client_id_prefix = format!("mqtt2file-{}", hostname);
+    let client_id: String;
+    if args.client_id_suffix != "" {
+        client_id = format!("{}-{}", client_id_prefix, args.client_id_suffix);
+    } else {
+        client_id = client_id_prefix;
+    }
 
     // Create the client. Use an ID for a persistent session.
     let create_opts = mqtt::CreateOptionsBuilder::new()
         .mqtt_version(mqtt::MQTT_VERSION_5)
-        .server_uri(mqtt_uri)
-        .client_id(format!("mqtt2file-{:?}{}", hostname, client_id_suffix))
+        .server_uri(args.mqtt_uri)
+        .client_id(client_id)
         .finalize();
 
     let cli = mqtt::Client::new(create_opts)?;
@@ -64,7 +86,7 @@ fn main() -> Result<()> {
     let rx = cli.start_consuming();
 
     let conn_opts: ConnectOptions;
-    if client_id_suffix == "" {
+    if args.client_id_suffix == "" {
         conn_opts = mqtt::ConnectOptionsBuilder::new()
             .clean_start(true)
             .finalize();
@@ -99,7 +121,7 @@ fn main() -> Result<()> {
         } else {
             // Register subscriptions on the server, using Subscription ID's.
             info!("Subscribing to topics...");
-            cli.subscribe_with_options(format!("{}/#", topic_prefix), mqtt::QOS_1, None, sub_id(1))?;
+            cli.subscribe_with_options(format!("{}/#", args.topic_prefix), mqtt::QOS_1, None, sub_id(1))?;
         }
     }
 
@@ -141,4 +163,13 @@ fn main() -> Result<()> {
     info!("Exiting");
 
     Ok(())
+}
+
+fn init_logging(args: &Args) {
+    let log_levels = vec!["error", "warning", "info", "debug"];
+    let default_level = 2;
+    let actual_level = min(default_level + args.verbose, log_levels.len());
+    let env = Env::default()
+        .filter_or("LOG_LEVEL", log_levels[actual_level]);
+    env_logger::init_from_env(env);
 }
