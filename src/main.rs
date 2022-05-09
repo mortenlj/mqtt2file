@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate log;
 
-use std::{thread, time::Duration};
+use std::thread;
 use std::cmp::min;
 use std::fs::File;
 use std::io::Write;
+use std::ops::Add;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
@@ -12,6 +13,8 @@ use env_logger::Env;
 use paho_mqtt as mqtt;
 use paho_mqtt::{Client, ConnectOptions};
 use clap::Parser;
+use crossbeam_channel::RecvTimeoutError;
+use chrono::{Local, Duration};
 
 /// Collect messages from mqtt and write them to file
 #[derive(Parser,Debug)]
@@ -34,6 +37,10 @@ struct Args {
     /// Control verbosity of logs. Can be repeated
     #[clap(short, long, parse(from_occurrences))]
     verbose: usize,
+
+    /// Set timeout value in minutes
+    #[clap(short, long, default_value = "5")]
+    timeout: i64
 }
 
 
@@ -52,7 +59,7 @@ fn data_handler(msg: mqtt::Message, directory: &String) -> Result<()> {
 fn try_reconnect(cli: &mqtt::Client) -> bool {
     warn!("Connection lost. Waiting to retry connection");
     for _ in 0..12 {
-        thread::sleep(Duration::from_millis(5000));
+        thread::sleep(Duration::seconds(5).to_std().unwrap());
         if cli.reconnect().is_ok() {
             info!("Successfully reconnected");
             return true;
@@ -100,18 +107,38 @@ fn main() -> Result<()> {
     // Just loop on incoming messages.
     // If we get a None message, check if we got disconnected,
     // and then try a reconnect.
-    info!("Waiting for messages...");
-    for msg in rx.iter() {
-        if let Some(msg) = msg {
-            // In a real app you'd want to do a lot more error checking and
-            // recovery, but this should give an idea about the basics.
-
-            let result = data_handler(msg, &args.directory);
-            if result.is_err() {
-                error!("Error handling message: {}", result.err().unwrap())
+    let mut consuming = true;
+    loop {
+        let delay = Duration::minutes(args.timeout);
+        let deadline = Local::now().add(delay);
+        info!("Waiting for messages until {}...", deadline);
+        debug!("   that means {}", delay);
+        match rx.recv_timeout(delay.to_std()?) {
+            Ok(msg) => {
+                // Handle message
+                if let Some(msg) = msg {
+                    let result = data_handler(msg, &args.directory);
+                    if result.is_err() {
+                        error!("Error handling message: {}", result.err().unwrap())
+                    }
+                }
             }
-        } else if cli.is_connected() || !try_reconnect(&cli) {
-            break;
+            Err(RecvTimeoutError::Disconnected) => {
+                debug!("Disconnected, trying reconnect");
+                if cli.is_connected() || !try_reconnect(&cli) {
+                    break;
+                }
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                if consuming {
+                    debug!("Timed out; Stop consumer thread and do a second poll for more messages");
+                    cli.stop_consuming();
+                    consuming = false;
+                } else {
+                    debug!("Recevied second timeout, breaking out");
+                    break;
+                }
+            }
         }
     }
 
