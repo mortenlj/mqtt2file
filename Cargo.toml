@@ -13,5 +13,5 @@ hostname = "0.3.0"
 ctrlc = "3.2.2"
 anyhow = "1.0.60"
 clap = { version = "3.2.16", features = ["derive"] }
-chrono = "0.4.19"
+chrono = "0.4.20"
 crossbeam-channel = "0.5.6"
