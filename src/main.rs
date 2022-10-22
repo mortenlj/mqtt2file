@@ -12,13 +12,13 @@ use anyhow::{anyhow, Result};
 use env_logger::Env;
 use paho_mqtt as mqtt;
 use paho_mqtt::{Client, ConnectOptions};
-use clap::Parser;
+use clap::{Parser, ArgAction};
 use crossbeam_channel::RecvTimeoutError;
 use chrono::{Local, Duration};
 
 /// Collect messages from mqtt and write them to file
-#[derive(Parser,Debug)]
-#[clap(author="Morten Lied Johansen", version, about, long_about = None)]
+#[derive(Parser, Debug)]
+#[clap(author = "Morten Lied Johansen", version, about, long_about = None)]
 struct Args {
     /// Prefix of topics to subscribe to
     topic_prefix: String,
@@ -35,14 +35,13 @@ struct Args {
     client_id_suffix: String,
 
     /// Control verbosity of logs. Can be repeated
-    #[clap(short, long, parse(from_occurrences))]
-    verbose: usize,
+    #[clap(short, long, action = ArgAction::Count)]
+    verbose: u8,
 
     /// Set timeout value in minutes
     #[clap(short, long, default_value = "5")]
-    timeout: i64
+    timeout: i64,
 }
-
 
 
 fn data_handler(msg: mqtt::Message, directory: &String) -> Result<()> {
@@ -205,8 +204,8 @@ fn setup_ctrlc_handler(ctrlc_cli: Client) {
 /// Configure logging taking verbosity into account
 fn init_logging(args: &Args) {
     let log_levels = vec!["error", "warning", "info", "debug"];
-    let default_level = 2;
-    let actual_level = min(default_level + args.verbose, log_levels.len());
+    let default_level = 1;
+    let actual_level = min(default_level + args.verbose as usize, log_levels.len() - 1);
     let env = Env::default()
         .filter_or("LOG_LEVEL", log_levels[actual_level]);
     env_logger::init_from_env(env);
