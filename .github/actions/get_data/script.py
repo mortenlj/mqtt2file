@@ -30,8 +30,9 @@ def main():
         errors = errors | Errors.MISSING_RUN_ID
     if errors:
         return errors
-    print(f"::set-output name=version::{version_match.group(1)}")
-    print(f"::set-output name=run_id::{run_id_match.group(1)}")
+    with open(os.getenv("GITHUB_SOURCE"), "a") as fobj:
+        print(f"version={version_match.group(1)}", file=fobj)
+        print(f"run_id={run_id_match.group(1)}", file=fobj)
 
 
 if __name__ == '__main__':
