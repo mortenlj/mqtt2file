@@ -12,6 +12,6 @@ env_logger = "0.9.3"
 hostname = "0.3.0"
 ctrlc = "3.2.3"
 anyhow = "1.0.66"
-clap = { version = "4.0.23", features = ["derive"] }
+clap = { version = "4.0.24", features = ["derive"] }
 chrono = "0.4.23"
 crossbeam-channel = "0.5.6"
