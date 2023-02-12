@@ -1,11 +1,11 @@
 VERSION 0.6
 
-FROM rust:1.60
+FROM rust:1.67
 
 WORKDIR /code
 
 # Constants, do not override
-ARG cross_version=0.2.1
+ARG cross_version=0.2.5  # https://github.com/cross-rs/cross/releases
 
 ds-qoriq-sdk:
     FROM alpine:3
@@ -54,7 +54,7 @@ build-tier1:
     ARG version=unknown
 
     WITH DOCKER \
-        --pull rustembedded/cross:${target}-${cross_version}
+        --pull ghcr.io/cross-rs/${target}:${cross_version}
         RUN cross build --target ${target} --release
     END
     SAVE ARTIFACT --if-exists target/${target}/release/mqtt2file.exe AS LOCAL target/mqtt2file.${version}.${target}.exe
