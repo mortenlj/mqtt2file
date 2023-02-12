@@ -29,6 +29,9 @@ jobs:
     env:
       version: "${{ needs.set-version.outputs.version }}"
     steps:
+      - uses: earthly/actions-setup@v1
+        with:
+          version: "latest" # or pin to an specific version, e.g. "v0.6.10"
       - uses: actions/checkout@v3
       - name: Login to GitHub Packages Docker Registry
         uses: docker/login-action@v2
@@ -40,8 +43,7 @@ jobs:
         env:
           EARTHLY_PUSH: "${{ github.ref == 'refs/heads/main' }}"
         run: |
-          ./earthlyw --version
-          ./earthlyw --verbose --allow-privileged --ci --output "--remote-cache=${cache_image}" +build "--version=${version}"
+          earthly --verbose --allow-privileged --ci --output "--remote-cache=${cache_image}" +build "--version=${version}"
       - name: Save executables for release
         uses: actions/upload-artifact@v3
         with:
