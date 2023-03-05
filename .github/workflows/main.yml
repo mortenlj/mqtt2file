@@ -56,31 +56,27 @@ jobs:
       - set-version
       - build
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      issues: write
     steps:
       - uses: lee-dohm/close-matching-issues@v2
         with:
           query: 'label:release-candidate'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: nashmaniac/create-issue-action@v1.1
+      - uses: dacbd/create-issue-action@v1.2.1
         name: Create Release candidate issue
         with:
-          title: Release candidate ${{ needs.set-version.outputs.version }}
           token: ${{secrets.GITHUB_TOKEN}}
+          title: Release candidate ${{ needs.set-version.outputs.version }}
           labels: release-candidate
           body: |
             A new release candidate has been created.
-
             Comment on this issue with `/approve-release` to promote this candidate to a full release.
-
             <details>
             <summary>Release candidate data</summary>
-
             ```
             version: ${{ needs.set-version.outputs.version }}
             run_id: ${{ github.run_id }}
             ```
-
             </details>
