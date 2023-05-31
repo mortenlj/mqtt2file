@@ -10,7 +10,7 @@ paho-mqtt = { version = "0.12.1", default-features = false, features = ["bundled
 log = "0.4.18"
 env_logger = "0.10.0"
 hostname = "0.3.0"
-ctrlc = "3.3.1"
+ctrlc = "3.4.0"
 anyhow = "1.0.71"
 clap = { version = "4.3.0", features = ["derive"] }
 chrono = "0.4.25"
