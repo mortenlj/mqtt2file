@@ -23,7 +23,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: "Set version"
         id: constants
         run: |
@@ -41,7 +41,7 @@ jobs:
       - uses: earthly/actions-setup@v1
         with:
           version: "latest"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Login to GitHub Packages Docker Registry
         uses: docker/login-action@v2
         with:
