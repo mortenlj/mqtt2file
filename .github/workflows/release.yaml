@@ -40,7 +40,7 @@ jobs:
           path: ./executables/
 
       - name: Upload Release Assets
-        uses: AButler/upload-release-assets@v2.0
+        uses: AButler/upload-release-assets@v3.0
         with:
           files: './executables/*'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
