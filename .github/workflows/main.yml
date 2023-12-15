@@ -55,7 +55,7 @@ jobs:
         run: |
           earthly "--remote-cache=${cache_image}" +build "--version=${version}"
       - name: Save executables for release
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: executables
           path: target/mqtt2file.*
