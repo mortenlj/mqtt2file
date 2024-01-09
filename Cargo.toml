@@ -14,4 +14,4 @@ ctrlc = "3.4.2"
 anyhow = "1.0.79"
 clap = { version = "4.4.13", features = ["derive"] }
 chrono = "0.4.31"
-crossbeam-channel = "0.5.10"
+crossbeam-channel = "0.5.11"
