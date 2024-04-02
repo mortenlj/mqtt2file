@@ -9,7 +9,7 @@ edition = "2021"
 paho-mqtt = { version = "0.12.3", default-features = false, features = ["bundled"] }
 log = "0.4.21"
 env_logger = "0.10.2"
-hostname = "0.3.0"
+hostname = "0.4.0"
 ctrlc = "3.4.4"
 anyhow = "1.0.81"
 clap = { version = "4.5.4", features = ["derive"] }
