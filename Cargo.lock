@@ -532,9 +532,9 @@ checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
 name = "paho-mqtt"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19e405de34b835fb6457d8b0169eda21949f855472b3e346556af9e29fac6eb2"
+checksum = "57d8854e757eb3780b0e1626a49b125e16cd4bc1bd728778d04dfe952ae12260"
 dependencies = [
  "async-channel",
  "crossbeam-channel",
