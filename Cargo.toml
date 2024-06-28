@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 paho-mqtt = { version = "0.12.5", default-features = false, features = ["bundled"] }
-log = "0.4.21"
+log = "0.4.22"
 env_logger = "0.10.2"
 hostname = "0.4.0"
 ctrlc = "3.4.4"
